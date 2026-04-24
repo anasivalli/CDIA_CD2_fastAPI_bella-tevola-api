@@ -1,4 +1,4 @@
-name: CI — Bella Tavola
+name: CI Completo — Bella Tavola
 
 on:
   push:
@@ -7,31 +7,32 @@ on:
     branches: [main]
 
 jobs:
-  verificar-api:
+  verificar-sintaxe:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Baixar o código
-        uses: actions/checkout@v4
-
-      - name: Configurar Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Instalar Linters
+        run: pip install black autoflake
+      - name: Check Unused Imports
+        run: autoflake --check --remove-all-unused-imports -r .
+      - name: Check Formatting
+        run: black --check .
 
-      - name: Instalar dependências
+  verificar-api:
+    runs-on: ubuntu-latest
+    needs: verificar-sintaxe # SÓ RODA SE O ANTERIOR PASSAR
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install All
+        run: pip install -r requirements.txt
+      - name: Test Server
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Iniciar a API em background
-        run: |
-          # O '&' é crucial para não travar o pipeline esperando o servidor fechar
-          uvicorn main:app --port 8000 & 
-          sleep 5 # Tempo para a API carregar o modelo do Hub
-
-      - name: Verificar que a API responde
-        run: |
-          # --fail faz o curl retornar erro se o status for 4xx ou 5xx
-          curl --fail http://localhost:8000/health 
-          echo "✅ API respondeu com sucesso"
+          uvicorn main:app &
+          sleep 5
+          curl --fail http://localhost:8000/
