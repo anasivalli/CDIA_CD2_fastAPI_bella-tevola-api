@@ -1,0 +1,37 @@
+name: CI — Bella Tavola
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verificar-api:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependências
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Iniciar a API em background
+        run: |
+          # O '&' é crucial para não travar o pipeline esperando o servidor fechar
+          uvicorn main:app --port 8000 & 
+          sleep 5 # Tempo para a API carregar o modelo do Hub
+
+      - name: Verificar que a API responde
+        run: |
+          # --fail faz o curl retornar erro se o status for 4xx ou 5xx
+          curl --fail http://localhost:8000/health 
+          echo "✅ API respondeu com sucesso"
